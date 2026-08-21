@@ -5,8 +5,16 @@ import '../data/sesion.dart';
 import '../models/finca.dart';
 import '../saludo.dart';
 
-class SeleccionarFincaScreen extends StatelessWidget {
+class SeleccionarFincaScreen extends StatefulWidget {
   const SeleccionarFincaScreen({super.key});
+
+  @override
+  State<SeleccionarFincaScreen> createState() =>
+      _SeleccionarFincaScreenState();
+}
+
+class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
+  Finca? _seleccion;
 
   @override
   Widget build(BuildContext context) {
@@ -78,46 +86,54 @@ class SeleccionarFincaScreen extends StatelessWidget {
                   if (fincas.isEmpty) {
                     return const Center(child: Text('No hay fincas registradas'));
                   }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                    itemCount: fincas.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final f = fincas[index];
-                      return Material(
-                        color: colorScheme.surface,
-                        elevation: 1,
-                        borderRadius: BorderRadius.circular(16),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () => fincaSeleccionada.value = f,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 22,
-                                  backgroundColor: colorScheme.secondaryContainer,
-                                  child: Icon(Icons.agriculture,
-                                      color: colorScheme.onSecondaryContainer),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Text(
-                                    f.nombre,
-                                    style: const TextStyle(
-                                        fontSize: 16, fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                                Icon(Icons.chevron_right,
-                                    color: colorScheme.outline),
-                              ],
-                            ),
+
+                  final seleccionValida = _seleccion != null &&
+                      fincas.any((f) => f.id == _seleccion!.id);
+                  final valorActual = seleccionValida ? _seleccion : null;
+
+                  return Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Finca',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
-                      );
-                    },
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<Finca>(
+                          initialValue: valorActual,
+                          decoration: InputDecoration(
+                            hintText: 'Selecciona una finca',
+                            prefixIcon: const Icon(Icons.agriculture),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          items: fincas
+                              .map((f) => DropdownMenuItem(
+                                    value: f,
+                                    child: Text(f.nombre),
+                                  ))
+                              .toList(),
+                          onChanged: (f) => setState(() => _seleccion = f),
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton(
+                          onPressed: valorActual == null
+                              ? null
+                              : () => fincaSeleccionada.value = valorActual,
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('Continuar'),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
