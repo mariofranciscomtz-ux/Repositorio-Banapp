@@ -14,7 +14,7 @@ class SeleccionarFincaScreen extends StatefulWidget {
 }
 
 class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
-  Finca? _seleccion;
+  String? _seleccionId;
 
   @override
   Widget build(BuildContext context) {
@@ -87,9 +87,12 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
                     return const Center(child: Text('No hay fincas registradas'));
                   }
 
-                  final seleccionValida = _seleccion != null &&
-                      fincas.any((f) => f.id == _seleccion!.id);
-                  final valorActual = seleccionValida ? _seleccion : null;
+                  final seleccionValida =
+                      fincas.any((f) => f.id == _seleccionId);
+                  final idActual = seleccionValida ? _seleccionId : null;
+                  final fincaActual = seleccionValida
+                      ? fincas.firstWhere((f) => f.id == _seleccionId)
+                      : null;
 
                   return Padding(
                     padding: const EdgeInsets.all(20),
@@ -105,8 +108,8 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        DropdownButtonFormField<Finca>(
-                          initialValue: valorActual,
+                        DropdownButtonFormField<String>(
+                          initialValue: idActual,
                           decoration: InputDecoration(
                             hintText: 'Selecciona una finca',
                             prefixIcon: const Icon(Icons.agriculture),
@@ -116,17 +119,17 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
                           ),
                           items: fincas
                               .map((f) => DropdownMenuItem(
-                                    value: f,
+                                    value: f.id,
                                     child: Text(f.nombre),
                                   ))
                               .toList(),
-                          onChanged: (f) => setState(() => _seleccion = f),
+                          onChanged: (id) => setState(() => _seleccionId = id),
                         ),
                         const SizedBox(height: 24),
                         FilledButton(
-                          onPressed: valorActual == null
+                          onPressed: fincaActual == null
                               ? null
-                              : () => fincaSeleccionada.value = valorActual,
+                              : () => fincaSeleccionada.value = fincaActual,
                           style: FilledButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
