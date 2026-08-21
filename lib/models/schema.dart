@@ -3,6 +3,8 @@ import 'package:powersync/powersync.dart';
 const schema = Schema([
   Table('fincas', [
     Column.text('nombre'),
+    Column.real('latitud'),
+    Column.real('longitud'),
   ]),
   Table('lotes', [
     Column.text('finca_id'),
