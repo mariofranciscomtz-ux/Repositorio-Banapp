@@ -75,7 +75,7 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
             ),
             Expanded(
               child: StreamBuilder(
-                stream: db.watch('SELECT * FROM fincas ORDER BY nombre'),
+                stream: db.watch('SELECT * FROM fincas ORDER BY orden, nombre'),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return Center(

@@ -5,6 +5,7 @@ const schema = Schema([
     Column.text('nombre'),
     Column.real('latitud'),
     Column.real('longitud'),
+    Column.integer('orden'),
   ]),
   Table('lotes', [
     Column.text('finca_id'),
