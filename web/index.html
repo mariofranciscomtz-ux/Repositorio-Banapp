@@ -31,16 +31,46 @@
 
   <title>Banapp</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    #splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #F7FBF1;
+      z-index: 9999;
+    }
+    #splash img {
+      width: 110px;
+      height: 110px;
+    }
+    #splash span {
+      margin-top: 12px;
+      font-family: sans-serif;
+      font-size: 22px;
+      color: #1B1B1B;
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="splash">
+    <img src="splash_logo.png" alt="Banapp" />
+    <span>Banapp</span>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    {{flutter_js}}
+    {{flutter_build_config}}
+    _flutter.loader.load({
+      onEntrypointLoaded: async function (engineInitializer) {
+        const appRunner = await engineInitializer.initializeEngine();
+        document.getElementById('splash')?.remove();
+        await appRunner.runApp();
+      }
+    });
+  </script>
 </body>
 </html>
