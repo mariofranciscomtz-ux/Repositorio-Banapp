@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Ciclo real de colores de cinta de la empresa. El año de embolse arranca
-/// en la semana ISO 42 del año calendario anterior, siempre con Amarillo.
+/// Ciclo real de colores de cinta de la empresa (rotación de 8 semanas).
 const cintaCiclo = [
   'Amarillo',
   'Blanco',
@@ -24,8 +23,9 @@ const cintaColores = <String, Color>{
   'Verde': Color(0xFF2E7D32),
 };
 
-// Lunes que inicia la semana ISO 42 de 2026 = Amarillo (índice 0).
-final _anclaCiclo = DateTime(2026, 10, 12);
+// Calibrado con semana 34 (18-23 ago 2026) = Blanco y semana 35 (24-30
+// ago 2026) = Azul, confirmado en campo. Este lunes = Amarillo (índice 0).
+final _anclaCiclo = DateTime(2026, 10, 5);
 
 int _floorDiv(int a, int b) {
   final q = a ~/ b;
