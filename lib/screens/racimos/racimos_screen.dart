@@ -78,8 +78,7 @@ class _RacimosScreenState extends State<RacimosScreen> {
         lotes.firstWhere((l) => l.id == _ultimoLoteId, orElse: () => lotes.first);
 
     final ahora = DateTime.now();
-    final colorSugerido = colorCintaParaFecha(ahora);
-    String colorSeleccionado = colorSugerido;
+    final colorSemana = colorCintaParaFecha(ahora);
     String? vueltaSeleccionada;
     final cantidadController = TextEditingController();
 
@@ -131,42 +130,35 @@ class _RacimosScreenState extends State<RacimosScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Text('Color de cinta (sugerido: $colorSugerido)'),
+                const Text('Color de cinta (semana actual)'),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: cintaCiclo.map((c) {
-                    final seleccionado = c == colorSeleccionado;
-                    final colorSwatch = cintaColores[c]!;
-                    return ChoiceChip(
-                      avatar: Container(
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
                         width: 18,
                         height: 18,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: colorSwatch,
+                          color: cintaColores[colorSemana]!,
                           border: Border.all(color: Colors.grey.shade500),
                         ),
                       ),
-                      label: Text(c),
-                      selected: seleccionado,
-                      onSelected: (_) =>
-                          setDialogState(() => colorSeleccionado = c),
-                      labelStyle: const TextStyle(fontSize: 16),
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: BorderSide(
-                          color: seleccionado
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.grey.shade400,
-                          width: seleccionado ? 2 : 1,
-                        ),
+                      const SizedBox(width: 10),
+                      Text(
+                        colorSemana,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600),
                       ),
-                    );
-                  }).toList(),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -198,7 +190,7 @@ class _RacimosScreenState extends State<RacimosScreen> {
           uuid.v4(),
           loteSeleccionado.id,
           dateOnly(DateTime.now()),
-          colorSeleccionado,
+          colorSemana,
           vueltaSeleccionada,
           cantidad,
           Supabase.instance.client.auth.currentUser?.id,
