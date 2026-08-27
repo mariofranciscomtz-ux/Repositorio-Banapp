@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../data/pin_hash.dart';
 import '../data/supabase_client.dart';
 import '../data/sesion.dart';
 import '../models/finca.dart';
+import '../models/usuario.dart';
 import '../saludo.dart';
 
 class SeleccionarFincaScreen extends StatefulWidget {
@@ -14,6 +17,104 @@ class SeleccionarFincaScreen extends StatefulWidget {
 
 class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
   String? _seleccionId;
+
+  Future<void> _crearUsuario() async {
+    final usuariosData = await supabase.from('usuarios').select();
+    final usuarios = usuariosData.map(Usuario.fromRow).toList();
+
+    final nombreController = TextEditingController();
+    final pinController = TextEditingController();
+    final pinConfirmController = TextEditingController();
+    String? errorDialog;
+
+    if (!mounted) return;
+    final creado = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Nuevo usuario'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nombreController,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: pinController,
+                decoration: const InputDecoration(labelText: 'PIN (4 dígitos)'),
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 4,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              ),
+              TextField(
+                controller: pinConfirmController,
+                decoration:
+                    const InputDecoration(labelText: 'Confirmar PIN'),
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 4,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              ),
+              if (errorDialog != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(errorDialog!,
+                      style: const TextStyle(color: Colors.red)),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final nombre = nombreController.text.trim();
+                if (nombre.isEmpty) {
+                  setDialogState(() => errorDialog = 'Escribe un nombre');
+                  return;
+                }
+                if (usuarios.any(
+                    (u) => u.nombre.toLowerCase() == nombre.toLowerCase())) {
+                  setDialogState(
+                      () => errorDialog = 'Ya existe un usuario con ese nombre');
+                  return;
+                }
+                if (pinController.text.length != 4) {
+                  setDialogState(() => errorDialog = 'El PIN debe tener 4 dígitos');
+                  return;
+                }
+                if (pinController.text != pinConfirmController.text) {
+                  setDialogState(() => errorDialog = 'Los PIN no coinciden');
+                  return;
+                }
+                Navigator.pop(context, true);
+              },
+              child: const Text('Crear'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (creado == true) {
+      await supabase.from('usuarios').insert({
+        'nombre': nombreController.text.trim(),
+        'pin_hash': hashPin(pinController.text),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'Usuario "${nombreController.text.trim()}" creado. Ya puede iniciar sesión con su PIN.'),
+        duration: const Duration(seconds: 3),
+      ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,10 +162,16 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.person_outline),
-                    tooltip: 'Cambiar usuario (${usuarioActivo.value?.nombre ?? ""})',
-                    onPressed: () => usuarioActivo.value = null,
+                  ValueListenableBuilder(
+                    valueListenable: usuarioActivo,
+                    builder: (context, usuario, _) {
+                      if (usuario == null) return const SizedBox.shrink();
+                      return IconButton(
+                        icon: const Icon(Icons.person_outline),
+                        tooltip: 'Cambiar usuario (${usuario.nombre})',
+                        onPressed: () => usuarioActivo.value = null,
+                      );
+                    },
                   ),
                 ],
               ),
@@ -137,6 +244,12 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
                           child: const Text('Continuar'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          onPressed: _crearUsuario,
+                          icon: const Icon(Icons.person_add),
+                          label: const Text('Crear usuario nuevo'),
                         ),
                       ],
                     ),
