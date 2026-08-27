@@ -11,8 +11,13 @@ import 'seleccionar_usuario_screen.dart';
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
-  Future<void> _reintentar() =>
-      Supabase.instance.client.auth.signInAnonymously();
+  Future<void> _reintentar() async {
+    try {
+      await Supabase.instance.client.auth.signInAnonymously();
+    } catch (_) {
+      // Se queda en esta pantalla; el usuario puede volver a intentar.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -38,7 +38,13 @@ Future<void> openDatabase() async {
     // No hay login visible de correo/contraseña: el dispositivo se
     // autentica solo (sesión anónima de Supabase) para poder sincronizar;
     // quién es cada trabajador se identifica luego con usuario + PIN.
-    await Supabase.instance.client.auth.signInAnonymously();
+    // Si falla (p. ej. sin conexión), no debe tumbar el arranque de la
+    // app: AuthGate muestra una pantalla de reintento.
+    try {
+      await Supabase.instance.client.auth.signInAnonymously();
+    } catch (_) {
+      // AuthGate se encarga de reintentar.
+    }
   }
 
   if (isLoggedIn()) {
