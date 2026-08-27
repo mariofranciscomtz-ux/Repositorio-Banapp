@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:powersync/powersync.dart' hide Column;
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/pin_hash.dart';
 import '../data/powersync.dart';
 import '../data/sesion.dart';
@@ -132,13 +131,6 @@ class _SeleccionarUsuarioScreenState extends State<SeleccionarUsuarioScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('¿Quién eres?'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Cerrar sesión del dispositivo',
-            onPressed: () => Supabase.instance.client.auth.signOut(),
-          ),
-        ],
       ),
       body: StreamBuilder(
         stream: db.watch('SELECT * FROM usuarios ORDER BY nombre'),

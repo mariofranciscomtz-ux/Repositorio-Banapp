@@ -34,6 +34,13 @@ Future<void> openDatabase() async {
     publishableKey: AppConfig.supabasePublishableKey,
   );
 
+  if (!isLoggedIn()) {
+    // No hay login visible de correo/contraseña: el dispositivo se
+    // autentica solo (sesión anónima de Supabase) para poder sincronizar;
+    // quién es cada trabajador se identifica luego con usuario + PIN.
+    await Supabase.instance.client.auth.signInAnonymously();
+  }
+
   if (isLoggedIn()) {
     db.connect(connector: SupabaseConnector());
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/clima_service.dart';
 import '../data/sesion.dart';
 import 'racimos/racimos_screen.dart';
@@ -64,15 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.swap_horiz),
             tooltip: 'Cambiar finca',
             onPressed: () => fincaSeleccionada.value = null,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Cerrar sesión',
-            onPressed: () {
-              fincaSeleccionada.value = null;
-              usuarioActivo.value = null;
-              Supabase.instance.client.auth.signOut();
-            },
           ),
         ],
       ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/powersync.dart';
 import '../data/sesion.dart';
 import '../models/finca.dart';
@@ -66,15 +65,6 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
                     icon: const Icon(Icons.person_outline),
                     tooltip: 'Cambiar usuario (${usuarioActivo.value?.nombre ?? ""})',
                     onPressed: () => usuarioActivo.value = null,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.logout),
-                    tooltip: 'Cerrar sesión',
-                    onPressed: () {
-                      fincaSeleccionada.value = null;
-                      usuarioActivo.value = null;
-                      Supabase.instance.client.auth.signOut();
-                    },
                   ),
                 ],
               ),
