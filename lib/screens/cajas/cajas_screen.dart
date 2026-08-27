@@ -76,14 +76,15 @@ class _CajasScreenState extends State<CajasScreen> {
     final cantidad = int.tryParse(cantidadController.text);
     if (creado == true && cantidad != null) {
       await db.execute(
-        'INSERT INTO cajas_procesadas (id, finca_id, tipo_caja_id, cantidad_cajas, fecha) '
-        'VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO cajas_procesadas (id, finca_id, tipo_caja_id, cantidad_cajas, fecha, operario_id) '
+        'VALUES (?, ?, ?, ?, ?, ?)',
         [
           uuid.v4(),
           finca.id,
           tipoSeleccionado.id,
           cantidad,
           dateOnly(DateTime.now()),
+          sesion.usuarioActivo.value?.id,
         ],
       );
     }

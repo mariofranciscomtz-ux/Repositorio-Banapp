@@ -1,6 +1,10 @@
 import 'package:powersync/powersync.dart';
 
 const schema = Schema([
+  Table('usuarios', [
+    Column.text('nombre'),
+    Column.text('pin_hash'),
+  ]),
   Table('fincas', [
     Column.text('nombre'),
     Column.real('latitud'),
@@ -19,6 +23,7 @@ const schema = Schema([
     Column.text('vuelta'),
     Column.integer('cantidad_racimos'),
     Column.text('identificado_por'),
+    Column.text('operario_id'),
   ]),
   Table('cosecha_viajes', [
     Column.text('lote_id'),
@@ -36,6 +41,7 @@ const schema = Schema([
     Column.real('calibracion_edad_10'),
     Column.real('calibracion_edad_11'),
     Column.real('calibracion_edad_12'),
+    Column.text('operario_id'),
   ]),
   Table('cosecha_viaje_defectos', [
     Column.text('viaje_id'),
@@ -53,5 +59,6 @@ const schema = Schema([
     Column.text('tipo_caja_id'),
     Column.integer('cantidad_cajas'),
     Column.text('fecha'),
+    Column.text('operario_id'),
   ]),
 ]);

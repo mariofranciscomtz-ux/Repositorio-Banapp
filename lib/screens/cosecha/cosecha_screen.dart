@@ -505,8 +505,8 @@ class _CosechaScreenState extends State<CosechaScreen> {
         'racimos_edad_8, racimos_edad_9, racimos_edad_10, racimos_edad_11, racimos_edad_12, '
         'racimos_recusados, '
         'calibracion_edad_8, calibracion_edad_9, calibracion_edad_10, '
-        'calibracion_edad_11, calibracion_edad_12) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'calibracion_edad_11, calibracion_edad_12, operario_id) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           viajeId,
           loteSeleccionado.id,
@@ -524,6 +524,7 @@ class _CosechaScreenState extends State<CosechaScreen> {
           calibracionesPorEdad[10],
           calibracionesPorEdad[11],
           calibracionesPorEdad[12],
+          sesion.usuarioActivo.value?.id,
         ],
       );
     }

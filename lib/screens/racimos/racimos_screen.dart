@@ -184,8 +184,8 @@ class _RacimosScreenState extends State<RacimosScreen> {
       _ultimoLoteId = loteSeleccionado.id;
       await db.execute(
         'INSERT INTO identificaciones_racimos '
-        '(id, lote_id, fecha, color_cinta, vuelta, cantidad_racimos, identificado_por) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?)',
+        '(id, lote_id, fecha, color_cinta, vuelta, cantidad_racimos, identificado_por, operario_id) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [
           uuid.v4(),
           loteSeleccionado.id,
@@ -194,6 +194,7 @@ class _RacimosScreenState extends State<RacimosScreen> {
           vueltaSeleccionada,
           cantidad,
           Supabase.instance.client.auth.currentUser?.id,
+          sesion.usuarioActivo.value?.id,
         ],
       );
       if (!mounted) return;

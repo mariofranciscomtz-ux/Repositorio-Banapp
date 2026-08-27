@@ -63,10 +63,16 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
                     ),
                   ),
                   IconButton(
+                    icon: const Icon(Icons.person_outline),
+                    tooltip: 'Cambiar usuario (${usuarioActivo.value?.nombre ?? ""})',
+                    onPressed: () => usuarioActivo.value = null,
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.logout),
                     tooltip: 'Cerrar sesión',
                     onPressed: () {
                       fincaSeleccionada.value = null;
+                      usuarioActivo.value = null;
                       Supabase.instance.client.auth.signOut();
                     },
                   ),

@@ -56,6 +56,11 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(fincaSeleccionada.value?.nombre ?? 'Banapp'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Cambiar usuario (${usuarioActivo.value?.nombre ?? ""})',
+            onPressed: () => usuarioActivo.value = null,
+          ),
+          IconButton(
             icon: const Icon(Icons.swap_horiz),
             tooltip: 'Cambiar finca',
             onPressed: () => fincaSeleccionada.value = null,
@@ -65,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Cerrar sesión',
             onPressed: () {
               fincaSeleccionada.value = null;
+              usuarioActivo.value = null;
               Supabase.instance.client.auth.signOut();
             },
           ),
