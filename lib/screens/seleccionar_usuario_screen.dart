@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:powersync/powersync.dart' hide Column;
 import '../data/pin_hash.dart';
-import '../data/powersync.dart';
+import '../data/supabase_client.dart';
 import '../data/sesion.dart';
 import '../models/usuario.dart';
 
@@ -115,12 +114,15 @@ class _SeleccionarUsuarioScreenState extends State<SeleccionarUsuarioScreen> {
     );
 
     if (creado == true) {
-      final nuevoId = uuid.v4();
-      await db.execute(
-        'INSERT INTO usuarios (id, nombre, pin_hash) VALUES (?, ?, ?)',
-        [nuevoId, nombreController.text.trim(), hashPin(pinController.text)],
-      );
-      setState(() => _usuarioId = nuevoId);
+      final inserted = await supabase
+          .from('usuarios')
+          .insert({
+            'nombre': nombreController.text.trim(),
+            'pin_hash': hashPin(pinController.text),
+          })
+          .select()
+          .single();
+      setState(() => _usuarioId = inserted['id'] as String);
     }
   }
 
@@ -133,14 +135,16 @@ class _SeleccionarUsuarioScreenState extends State<SeleccionarUsuarioScreen> {
         title: const Text('¿Quién eres?'),
       ),
       body: StreamBuilder(
-        stream: db.watch('SELECT * FROM usuarios ORDER BY nombre'),
+        stream: supabase.from('usuarios').stream(primaryKey: ['id']),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
                 child: Text('Error cargando usuarios: ${snapshot.error}'));
           }
-          final usuarios =
-              snapshot.data?.map(Usuario.fromRow).toList() ?? const <Usuario>[];
+          final usuarios = (snapshot.data ?? const [])
+              .map(Usuario.fromRow)
+              .toList()
+            ..sort((a, b) => a.nombre.compareTo(b.nombre));
           final seleccionValida = usuarios.any((u) => u.id == _usuarioId);
           final idActual = seleccionValida ? _usuarioId : null;
 

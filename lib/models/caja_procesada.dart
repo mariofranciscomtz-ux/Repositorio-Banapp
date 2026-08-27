@@ -1,3 +1,5 @@
+import 'tipo_caja.dart';
+
 class CajaProcesada {
   final String id;
   final String fincaNombre;
@@ -18,11 +20,16 @@ class CajaProcesada {
   double get pesoNetoTotalKg => cantidadCajas * pesoNetoKg;
   double get cajasEquivalentes185 => pesoNetoTotalKg / 18.5;
 
-  factory CajaProcesada.fromRow(dynamic row) => CajaProcesada(
+  factory CajaProcesada.desdeRegistro(
+    dynamic row, {
+    required String fincaNombre,
+    required TipoCaja tipoCaja,
+  }) =>
+      CajaProcesada(
         id: row['id'] as String,
-        fincaNombre: row['finca_nombre'] as String,
-        tipoCajaNombre: row['tipo_caja_nombre'] as String,
-        pesoNetoKg: (row['peso_neto_kg'] as num).toDouble(),
+        fincaNombre: fincaNombre,
+        tipoCajaNombre: tipoCaja.nombre,
+        pesoNetoKg: tipoCaja.pesoNetoKg,
         cantidadCajas: row['cantidad_cajas'] as int,
         fecha: DateTime.parse(row['fecha'] as String),
       );

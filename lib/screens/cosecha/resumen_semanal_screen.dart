@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../data/powersync.dart';
+import '../../data/supabase_client.dart';
 import '../../embolse_year.dart';
 import '../../models/finca.dart';
+import '../../models/lote.dart';
 
 const _edadesCosecha = [8, 9, 10, 11, 12];
 
@@ -35,6 +36,21 @@ class _ResumenSemanalScreenState extends State<ResumenSemanalScreen> {
 
   String _fmt(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+
+  Future<(List<Lote>, List<Map<String, dynamic>>)> _cargarDatos(
+      DateTime inicio, DateTime fin) async {
+    final lotesData = await supabase
+        .from('lotes')
+        .select()
+        .eq('finca_id', widget.finca.id);
+    final viajesData = await supabase
+        .from('cosecha_viajes')
+        .select()
+        .eq('finca_id', widget.finca.id)
+        .gte('fecha', dateOnly(inicio))
+        .lt('fecha', dateOnly(fin));
+    return (lotesData.map(Lote.fromRow).toList(), viajesData);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,21 +88,7 @@ class _ResumenSemanalScreenState extends State<ResumenSemanalScreen> {
           ),
           Expanded(
             child: FutureBuilder(
-              future: db.getAll(
-                'SELECT l.nombre as lote_nombre, '
-                'cv.racimos_edad_8, cv.racimos_edad_9, cv.racimos_edad_10, '
-                'cv.racimos_edad_11, cv.racimos_edad_12, cv.racimos_recusados, '
-                'cv.calibracion_edad_8, cv.calibracion_edad_9, cv.calibracion_edad_10, '
-                'cv.calibracion_edad_11, cv.calibracion_edad_12 '
-                'FROM cosecha_viajes cv '
-                'JOIN lotes l ON l.id = cv.lote_id '
-                'WHERE l.finca_id = ? AND cv.fecha >= ? AND cv.fecha < ?',
-                [
-                  widget.finca.id,
-                  dateOnly(semana.inicio),
-                  dateOnly(semana.fin),
-                ],
-              ),
+              future: _cargarDatos(semana.inicio, semana.fin),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(
@@ -95,18 +97,20 @@ class _ResumenSemanalScreenState extends State<ResumenSemanalScreen> {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final filas = snapshot.data!;
+                final (lotes, filas) = snapshot.data!;
                 if (filas.isEmpty) {
                   return const Center(
                       child: Text('Sin viajes registrados en esta semana'));
                 }
+                final lotesPorId = {for (final l in lotes) l.id: l};
 
                 final porLote = <String, Map<int, int>>{};
                 final recusadosPorLote = <String, int>{};
                 final calibSumaPorEdad = {for (final e in _edadesCosecha) e: 0.0};
                 final calibPesoPorEdad = {for (final e in _edadesCosecha) e: 0};
                 for (final f in filas) {
-                  final lote = f['lote_nombre'] as String;
+                  final lote =
+                      lotesPorId[f['lote_id']]?.nombre ?? '(lote eliminado)';
                   final mapa = porLote.putIfAbsent(
                       lote, () => {for (final e in _edadesCosecha) e: 0});
                   for (final e in _edadesCosecha) {

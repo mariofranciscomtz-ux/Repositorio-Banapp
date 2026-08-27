@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../cinta_colores.dart';
-import '../../data/powersync.dart';
+import '../../data/supabase_client.dart';
 import '../../embolse_year.dart';
 import '../../models/finca.dart';
+import '../../models/lote.dart';
 
 class _LoteAnual {
   final String nombre;
@@ -17,6 +18,22 @@ class _LoteAnual {
 class ReporteAnualScreen extends StatelessWidget {
   final Finca finca;
   const ReporteAnualScreen({super.key, required this.finca});
+
+  Future<(List<Lote>, List<Map<String, dynamic>>)> _cargarDatos(
+      DateTime inicio, DateTime fin) async {
+    final lotesData = await supabase
+        .from('lotes')
+        .select()
+        .eq('finca_id', finca.id)
+        .order('nombre');
+    final idData = await supabase
+        .from('identificaciones_racimos')
+        .select()
+        .eq('finca_id', finca.id)
+        .gte('fecha', dateOnly(inicio))
+        .lt('fecha', dateOnly(fin));
+    return (lotesData.map(Lote.fromRow).toList(), idData);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,16 +50,7 @@ class ReporteAnualScreen extends StatelessWidget {
         title: Text('Embolse año $anio · ${finca.nombre}'),
       ),
       body: FutureBuilder(
-        future: db.getAll(
-          'SELECT l.id as lote_id, l.nombre as lote_nombre, l.hectareas, '
-          'ir.fecha, ir.cantidad_racimos '
-          'FROM lotes l '
-          'LEFT JOIN identificaciones_racimos ir ON ir.lote_id = l.id '
-          '  AND ir.fecha >= ? AND ir.fecha < ? '
-          'WHERE l.finca_id = ? '
-          'ORDER BY l.nombre',
-          [dateOnly(inicio), dateOnly(fin), finca.id],
-        ),
+        future: _cargarDatos(inicio, fin),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Error cargando datos: ${snapshot.error}'));
@@ -51,31 +59,23 @@ class ReporteAnualScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // Agrupar por lote, y dentro de cada lote sumar por semana.
-          final porLote = <String, ({String nombre, double has, List<int> semanas})>{};
-          for (final row in snapshot.data!) {
-            final loteId = row['lote_id'] as String;
-            porLote.putIfAbsent(
-              loteId,
-              () => (
-                nombre: row['lote_nombre'] as String,
-                has: (row['hectareas'] as num).toDouble(),
-                semanas: List.filled(52, 0),
-              ),
-            );
-            final fechaStr = row['fecha'] as String?;
-            final cantidad = row['cantidad_racimos'] as int?;
-            if (fechaStr == null || cantidad == null) continue;
-            final fecha = DateTime.parse(fechaStr);
-            final idx = fecha.difference(inicio).inDays ~/ 7;
-            if (idx >= 0 && idx < 52) {
-              porLote[loteId]!.semanas[idx] += cantidad;
-            }
-          }
+          final (lotesData, registros) = snapshot.data!;
 
-          final lotes = porLote.values
-              .map((v) => _LoteAnual(v.nombre, v.has, v.semanas))
-              .toList()
+          final lotes = lotesData.map((lote) {
+            final semanas = List.filled(52, 0);
+            for (final row in registros) {
+              if (row['lote_id'] != lote.id) continue;
+              final fechaStr = row['fecha'] as String?;
+              final cantidad = row['cantidad_racimos'] as int?;
+              if (fechaStr == null || cantidad == null) continue;
+              final fecha = DateTime.parse(fechaStr);
+              final idx = fecha.difference(inicio).inDays ~/ 7;
+              if (idx >= 0 && idx < 52) {
+                semanas[idx] += cantidad;
+              }
+            }
+            return _LoteAnual(lote.nombre, lote.hectareas, semanas);
+          }).toList()
             ..sort((a, b) => a.nombre.compareTo(b.nombre));
 
           if (lotes.isEmpty) {

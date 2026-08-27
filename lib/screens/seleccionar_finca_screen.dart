@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../data/powersync.dart';
+import '../data/supabase_client.dart';
 import '../data/sesion.dart';
 import '../models/finca.dart';
 import '../saludo.dart';
@@ -71,14 +71,21 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
             ),
             Expanded(
               child: StreamBuilder(
-                stream: db.watch('SELECT * FROM fincas ORDER BY orden, nombre'),
+                stream: supabase.from('fincas').stream(primaryKey: ['id']),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return Center(
                         child: Text('Error cargando fincas: ${snapshot.error}'));
                   }
-                  final fincas =
-                      snapshot.data?.map(Finca.fromRow).toList() ?? const <Finca>[];
+                  final fincas = (snapshot.data ?? const [])
+                      .map(Finca.fromRow)
+                      .toList()
+                    ..sort((a, b) {
+                      final ordenA = a.orden ?? 1 << 30;
+                      final ordenB = b.orden ?? 1 << 30;
+                      final cmp = ordenA.compareTo(ordenB);
+                      return cmp != 0 ? cmp : a.nombre.compareTo(b.nombre);
+                    });
                   if (fincas.isEmpty) {
                     return const Center(child: Text('No hay fincas registradas'));
                   }

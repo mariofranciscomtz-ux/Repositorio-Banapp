@@ -2,11 +2,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:powersync/powersync.dart' hide Column;
 import 'package:share_plus/share_plus.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../cinta_colores.dart';
-import '../../data/powersync.dart';
+import '../../data/supabase_client.dart';
 import '../../data/sesion.dart' as sesion;
 import '../../embolse_year.dart';
 import '../../models/lote.dart';
@@ -26,13 +24,6 @@ class _FilaLote {
 
   int get total => primera + segunda;
   double get racimosPorHa => hectareas > 0 ? total / hectareas : 0;
-
-  factory _FilaLote.fromRow(dynamic row) => _FilaLote(
-        loteNombre: row['lote_nombre'] as String,
-        hectareas: (row['hectareas'] as num).toDouble(),
-        primera: row['primera'] as int,
-        segunda: row['segunda'] as int,
-      );
 }
 
 (DateTime, DateTime) _rangoSemanaActual() {
@@ -60,12 +51,12 @@ class _RacimosScreenState extends State<RacimosScreen> {
   Future<void> _abrirFormulario() async {
     final finca = sesion.fincaSeleccionada.value!;
 
-    final lotes = (await db.getAll(
-      'SELECT * FROM lotes WHERE finca_id = ? ORDER BY nombre',
-      [finca.id],
-    ))
-        .map(Lote.fromRow)
-        .toList();
+    final lotesData = await supabase
+        .from('lotes')
+        .select()
+        .eq('finca_id', finca.id)
+        .order('nombre');
+    final lotes = lotesData.map(Lote.fromRow).toList();
 
     if (lotes.isEmpty) {
       if (!mounted) return;
@@ -182,21 +173,15 @@ class _RacimosScreenState extends State<RacimosScreen> {
     final cantidad = int.tryParse(cantidadController.text);
     if (creado == true && cantidad != null) {
       _ultimoLoteId = loteSeleccionado.id;
-      await db.execute(
-        'INSERT INTO identificaciones_racimos '
-        '(id, lote_id, fecha, color_cinta, vuelta, cantidad_racimos, identificado_por, operario_id) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [
-          uuid.v4(),
-          loteSeleccionado.id,
-          dateOnly(DateTime.now()),
-          colorSemana,
-          vueltaSeleccionada,
-          cantidad,
-          Supabase.instance.client.auth.currentUser?.id,
-          sesion.usuarioActivo.value?.id,
-        ],
-      );
+      await supabase.from('identificaciones_racimos').insert({
+        'lote_id': loteSeleccionado.id,
+        'finca_id': finca.id,
+        'fecha': dateOnly(DateTime.now()),
+        'color_cinta': colorSemana,
+        'vuelta': vueltaSeleccionada,
+        'cantidad_racimos': cantidad,
+        'operario_id': sesion.usuarioActivo.value?.id,
+      });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Identificación guardada'),
@@ -252,145 +237,183 @@ class _RacimosScreenState extends State<RacimosScreen> {
         ],
       ),
       body: StreamBuilder(
-        stream: db.watch(
-          'SELECT l.id as lote_id, l.nombre as lote_nombre, l.hectareas, '
-          "  SUM(CASE WHEN ir.vuelta = 'primera' THEN ir.cantidad_racimos ELSE 0 END) as primera, "
-          "  SUM(CASE WHEN ir.vuelta = 'segunda' THEN ir.cantidad_racimos ELSE 0 END) as segunda "
-          'FROM lotes l '
-          'LEFT JOIN identificaciones_racimos ir ON ir.lote_id = l.id '
-          '  AND ir.fecha >= ? AND ir.fecha < ? '
-          'WHERE l.finca_id = ? '
-          'GROUP BY l.id, l.nombre, l.hectareas '
-          'ORDER BY l.nombre',
-          parameters: [
-            dateOnly(inicioSemana),
-            dateOnly(finSemana),
-            finca.id,
-          ],
-        ),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error cargando datos: ${snapshot.error}'));
+        stream: supabase
+            .from('lotes')
+            .stream(primaryKey: ['id']).eq('finca_id', finca.id),
+        builder: (context, lotesSnapshot) {
+          if (lotesSnapshot.hasError) {
+            return Center(
+                child: Text('Error cargando datos: ${lotesSnapshot.error}'));
           }
-          if (!snapshot.hasData) {
+          if (!lotesSnapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final filas = snapshot.data!.map(_FilaLote.fromRow).toList();
-          if (filas.isEmpty) {
-            return const Center(child: Text('Esta finca no tiene lotes registrados'));
+          final lotes = lotesSnapshot.data!.map(Lote.fromRow).toList()
+            ..sort((a, b) => a.nombre.compareTo(b.nombre));
+          if (lotes.isEmpty) {
+            return const Center(
+                child: Text('Esta finca no tiene lotes registrados'));
           }
 
-          final totalPrimera = filas.fold<int>(0, (s, f) => s + f.primera);
-          final totalSegunda = filas.fold<int>(0, (s, f) => s + f.segunda);
-          final totalGeneral = totalPrimera + totalSegunda;
-          final totalHectareas = filas.fold<double>(0, (s, f) => s + f.hectareas);
-          final totalRacimosPorHa =
-              totalHectareas > 0 ? totalGeneral / totalHectareas : 0;
-          final lotesFaltantes = filas.where((f) => f.total == 0).length;
-          final completo = lotesFaltantes == 0;
+          return StreamBuilder(
+            stream: supabase
+                .from('identificaciones_racimos')
+                .stream(primaryKey: ['id'])
+                .eq('finca_id', finca.id)
+                .gte('fecha', dateOnly(inicioSemana))
+                .lt('fecha', dateOnly(finSemana)),
+            builder: (context, idSnapshot) {
+              if (idSnapshot.hasError) {
+                return Center(
+                    child: Text('Error cargando datos: ${idSnapshot.error}'));
+              }
+              if (!idSnapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final registros = idSnapshot.data!;
 
-          return Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: RepaintBoundary(
-                    key: _captureKey,
-                    child: Container(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${finca.nombre} · Semana actual',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: DataTable(
-                              columns: const [
-                                DataColumn(label: Text('Lote')),
-                                DataColumn(label: Text('1a vuelta'), numeric: true),
-                                DataColumn(label: Text('2a vuelta'), numeric: true),
-                                DataColumn(label: Text('Total'), numeric: true),
-                                DataColumn(label: Text('Racimos/ha'), numeric: true),
-                              ],
-                              rows: [
-                                ...filas.map((f) => DataRow(cells: [
-                                      DataCell(Text(f.loteNombre)),
-                                      DataCell(Text('${f.primera}')),
-                                      DataCell(Text('${f.segunda}')),
-                                      DataCell(Text('${f.total}')),
-                                      DataCell(
-                                          Text(f.racimosPorHa.toStringAsFixed(1))),
-                                    ])),
-                                DataRow(
-                                  color: WidgetStateProperty.all(Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer),
-                                  cells: [
-                                    const DataCell(Text('TOTAL',
-                                        style:
-                                            TextStyle(fontWeight: FontWeight.bold))),
-                                    DataCell(Text('$totalPrimera',
-                                        style:
-                                            const TextStyle(fontWeight: FontWeight.bold))),
-                                    DataCell(Text('$totalSegunda',
-                                        style:
-                                            const TextStyle(fontWeight: FontWeight.bold))),
-                                    DataCell(Text('$totalGeneral',
-                                        style:
-                                            const TextStyle(fontWeight: FontWeight.bold))),
-                                    DataCell(Text(
-                                        totalRacimosPorHa.toStringAsFixed(1),
-                                        style:
-                                            const TextStyle(fontWeight: FontWeight.bold))),
+              final filas = lotes.map((lote) {
+                final delLote =
+                    registros.where((r) => r['lote_id'] == lote.id);
+                final primera = delLote
+                    .where((r) => r['vuelta'] == 'primera')
+                    .fold<int>(0, (s, r) => s + (r['cantidad_racimos'] as int));
+                final segunda = delLote
+                    .where((r) => r['vuelta'] == 'segunda')
+                    .fold<int>(0, (s, r) => s + (r['cantidad_racimos'] as int));
+                return _FilaLote(
+                  loteNombre: lote.nombre,
+                  hectareas: lote.hectareas,
+                  primera: primera,
+                  segunda: segunda,
+                );
+              }).toList();
+
+              final totalPrimera =
+                  filas.fold<int>(0, (s, f) => s + f.primera);
+              final totalSegunda =
+                  filas.fold<int>(0, (s, f) => s + f.segunda);
+              final totalGeneral = totalPrimera + totalSegunda;
+              final totalHectareas =
+                  filas.fold<double>(0, (s, f) => s + f.hectareas);
+              final totalRacimosPorHa =
+                  totalHectareas > 0 ? totalGeneral / totalHectareas : 0;
+              final lotesFaltantes = filas.where((f) => f.total == 0).length;
+              final completo = lotesFaltantes == 0;
+
+              return Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: RepaintBoundary(
+                        key: _captureKey,
+                        child: Container(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${finca.nombre} · Semana actual',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 8),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: DataTable(
+                                  columns: const [
+                                    DataColumn(label: Text('Lote')),
+                                    DataColumn(
+                                        label: Text('1a vuelta'), numeric: true),
+                                    DataColumn(
+                                        label: Text('2a vuelta'), numeric: true),
+                                    DataColumn(
+                                        label: Text('Total'), numeric: true),
+                                    DataColumn(
+                                        label: Text('Racimos/ha'),
+                                        numeric: true),
+                                  ],
+                                  rows: [
+                                    ...filas.map((f) => DataRow(cells: [
+                                          DataCell(Text(f.loteNombre)),
+                                          DataCell(Text('${f.primera}')),
+                                          DataCell(Text('${f.segunda}')),
+                                          DataCell(Text('${f.total}')),
+                                          DataCell(Text(
+                                              f.racimosPorHa
+                                                  .toStringAsFixed(1))),
+                                        ])),
+                                    DataRow(
+                                      color: WidgetStateProperty.all(
+                                          Theme.of(context)
+                                              .colorScheme
+                                              .primaryContainer),
+                                      cells: [
+                                        const DataCell(Text('TOTAL',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold))),
+                                        DataCell(Text('$totalPrimera',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold))),
+                                        DataCell(Text('$totalSegunda',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold))),
+                                        DataCell(Text('$totalGeneral',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold))),
+                                        DataCell(Text(
+                                            totalRacimosPorHa
+                                                .toStringAsFixed(1),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold))),
+                                      ],
+                                    ),
                                   ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    if (!completo)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          'Faltan $lotesFaltantes lote(s) por registrar esta semana',
-                          style: const TextStyle(color: Colors.orange),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        if (!completo)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              'Faltan $lotesFaltantes lote(s) por registrar esta semana',
+                              style: const TextStyle(color: Colors.orange),
+                            ),
+                          ),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: completo && !_compartiendo
+                                ? () => _compartirTabla(finca.nombre)
+                                : null,
+                            icon: _compartiendo
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.share),
+                            label: Text(_compartiendo
+                                ? 'Generando...'
+                                : 'Descargar imagen del reporte'),
+                          ),
                         ),
-                      ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: completo && !_compartiendo
-                            ? () => _compartirTabla(finca.nombre)
-                            : null,
-                        icon: _compartiendo
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.share),
-                        label: Text(_compartiendo
-                            ? 'Generando...'
-                            : 'Descargar imagen del reporte'),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                ],
+              );
+            },
           );
         },
       ),

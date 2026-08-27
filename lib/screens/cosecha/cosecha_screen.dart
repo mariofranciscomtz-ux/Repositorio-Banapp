@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:powersync/powersync.dart' hide Column;
 import '../../cinta_colores.dart';
-import '../../data/powersync.dart';
+import '../../data/supabase_client.dart';
 import '../../data/sesion.dart' as sesion;
 import '../../embolse_year.dart';
 import '../../models/lote.dart';
@@ -60,10 +59,10 @@ class _ViajeRow {
   int get totalRacimos =>
       porEdad.values.fold(0, (a, b) => a + b) + recusados;
 
-  factory _ViajeRow.fromRow(dynamic row) => _ViajeRow(
+  factory _ViajeRow.fromRow(dynamic row, String loteNombre) => _ViajeRow(
         id: row['id'] as String,
         loteId: row['lote_id'] as String,
-        loteNombre: row['lote_nombre'] as String,
+        loteNombre: loteNombre,
         fecha: DateTime.parse(row['fecha'] as String),
         horaRegistro: DateTime.parse(row['hora_registro'] as String),
         operario: row['operario'] as String?,
@@ -113,12 +112,12 @@ class _CosechaScreenState extends State<CosechaScreen> {
     final esEdicion = existente != null;
     final finca = sesion.fincaSeleccionada.value!;
 
-    final lotes = (await db.getAll(
-      'SELECT * FROM lotes WHERE finca_id = ? ORDER BY nombre',
-      [finca.id],
-    ))
-        .map(Lote.fromRow)
-        .toList();
+    final lotesData = await supabase
+        .from('lotes')
+        .select()
+        .eq('finca_id', finca.id)
+        .order('nombre');
+    final lotes = lotesData.map(Lote.fromRow).toList();
 
     if (lotes.isEmpty) {
       if (!mounted) return;
@@ -156,11 +155,10 @@ class _CosechaScreenState extends State<CosechaScreen> {
 
     final defectos = <_DefectoEntrada>[];
     if (esEdicion) {
-      final filas = await db.getAll(
-        'SELECT tipo_defecto, cantidad FROM cosecha_viaje_defectos '
-        'WHERE viaje_id = ?',
-        [existente.id],
-      );
+      final filas = await supabase
+          .from('cosecha_viaje_defectos')
+          .select('tipo_defecto, cantidad')
+          .eq('viaje_id', existente.id);
       for (final fila in filas) {
         final tipoGuardado = fila['tipo_defecto'] as String;
         final entrada = _DefectoEntrada();
@@ -465,75 +463,55 @@ class _CosechaScreenState extends State<CosechaScreen> {
     final horaRegistro =
         DateTime(fecha.year, fecha.month, fecha.day, hora.hour, hora.minute)
             .toIso8601String();
-    final viajeId = existente?.id ?? uuid.v4();
 
+    final datosViaje = {
+      'lote_id': loteSeleccionado.id,
+      'fecha': dateOnly(fecha),
+      'hora_registro': horaRegistro,
+      'operario': operarioController.text.isEmpty ? null : operarioController.text,
+      'racimos_edad_8': cantidadesPorEdad[8],
+      'racimos_edad_9': cantidadesPorEdad[9],
+      'racimos_edad_10': cantidadesPorEdad[10],
+      'racimos_edad_11': cantidadesPorEdad[11],
+      'racimos_edad_12': cantidadesPorEdad[12],
+      'racimos_recusados': recusados,
+      'calibracion_edad_8': calibracionesPorEdad[8],
+      'calibracion_edad_9': calibracionesPorEdad[9],
+      'calibracion_edad_10': calibracionesPorEdad[10],
+      'calibracion_edad_11': calibracionesPorEdad[11],
+      'calibracion_edad_12': calibracionesPorEdad[12],
+    };
+
+    late final String viajeId;
     if (esEdicion) {
-      await db.execute(
-        'UPDATE cosecha_viajes SET lote_id = ?, fecha = ?, hora_registro = ?, '
-        'operario = ?, racimos_edad_8 = ?, racimos_edad_9 = ?, racimos_edad_10 = ?, '
-        'racimos_edad_11 = ?, racimos_edad_12 = ?, racimos_recusados = ?, '
-        'calibracion_edad_8 = ?, calibracion_edad_9 = ?, calibracion_edad_10 = ?, '
-        'calibracion_edad_11 = ?, calibracion_edad_12 = ? '
-        'WHERE id = ?',
-        [
-          loteSeleccionado.id,
-          dateOnly(fecha),
-          horaRegistro,
-          operarioController.text.isEmpty ? null : operarioController.text,
-          cantidadesPorEdad[8],
-          cantidadesPorEdad[9],
-          cantidadesPorEdad[10],
-          cantidadesPorEdad[11],
-          cantidadesPorEdad[12],
-          recusados,
-          calibracionesPorEdad[8],
-          calibracionesPorEdad[9],
-          calibracionesPorEdad[10],
-          calibracionesPorEdad[11],
-          calibracionesPorEdad[12],
-          viajeId,
-        ],
-      );
-      await db.execute(
-        'DELETE FROM cosecha_viaje_defectos WHERE viaje_id = ?',
-        [viajeId],
-      );
+      viajeId = existente.id;
+      await supabase.from('cosecha_viajes').update(datosViaje).eq('id', viajeId);
+      await supabase
+          .from('cosecha_viaje_defectos')
+          .delete()
+          .eq('viaje_id', viajeId);
     } else {
-      await db.execute(
-        'INSERT INTO cosecha_viajes '
-        '(id, lote_id, fecha, hora_registro, operario, '
-        'racimos_edad_8, racimos_edad_9, racimos_edad_10, racimos_edad_11, racimos_edad_12, '
-        'racimos_recusados, '
-        'calibracion_edad_8, calibracion_edad_9, calibracion_edad_10, '
-        'calibracion_edad_11, calibracion_edad_12, operario_id) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [
-          viajeId,
-          loteSeleccionado.id,
-          dateOnly(fecha),
-          horaRegistro,
-          operarioController.text.isEmpty ? null : operarioController.text,
-          cantidadesPorEdad[8],
-          cantidadesPorEdad[9],
-          cantidadesPorEdad[10],
-          cantidadesPorEdad[11],
-          cantidadesPorEdad[12],
-          recusados,
-          calibracionesPorEdad[8],
-          calibracionesPorEdad[9],
-          calibracionesPorEdad[10],
-          calibracionesPorEdad[11],
-          calibracionesPorEdad[12],
-          sesion.usuarioActivo.value?.id,
-        ],
-      );
+      final inserted = await supabase
+          .from('cosecha_viajes')
+          .insert({
+            ...datosViaje,
+            'finca_id': finca.id,
+            'operario_id': sesion.usuarioActivo.value?.id,
+          })
+          .select()
+          .single();
+      viajeId = inserted['id'] as String;
     }
-    for (final d in defectosValidos) {
-      await db.execute(
-        'INSERT INTO cosecha_viaje_defectos (id, viaje_id, tipo_defecto, cantidad) '
-        'VALUES (?, ?, ?, ?)',
-        [uuid.v4(), viajeId, d.$1, d.$2],
-      );
+    if (defectosValidos.isNotEmpty) {
+      await supabase.from('cosecha_viaje_defectos').insert(
+            defectosValidos
+                .map((d) => {
+                      'viaje_id': viajeId,
+                      'tipo_defecto': d.$1,
+                      'cantidad': d.$2,
+                    })
+                .toList(),
+          );
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -565,11 +543,11 @@ class _CosechaScreenState extends State<CosechaScreen> {
     );
     if (confirmar != true) return;
 
-    await db.execute(
-      'DELETE FROM cosecha_viaje_defectos WHERE viaje_id = ?',
-      [v.id],
-    );
-    await db.execute('DELETE FROM cosecha_viajes WHERE id = ?', [v.id]);
+    await supabase
+        .from('cosecha_viaje_defectos')
+        .delete()
+        .eq('viaje_id', v.id);
+    await supabase.from('cosecha_viajes').delete().eq('id', v.id);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -580,35 +558,60 @@ class _CosechaScreenState extends State<CosechaScreen> {
 
   Future<void> _mostrarResumenPorLote() async {
     final finca = sesion.fincaSeleccionada.value!;
-    final filas = await db.getAll(
-      'SELECT l.nombre as lote_nombre, '
-      'COUNT(*) as num_viajes, '
-      'SUM(cv.racimos_edad_8) as edad_8, '
-      'SUM(cv.racimos_edad_9) as edad_9, '
-      'SUM(cv.racimos_edad_10) as edad_10, '
-      'SUM(cv.racimos_edad_11) as edad_11, '
-      'SUM(cv.racimos_edad_12) as edad_12, '
-      'SUM(cv.racimos_recusados) as recusados, '
-      'SUM(cv.racimos_edad_8 + cv.racimos_edad_9 + cv.racimos_edad_10 + '
-      'cv.racimos_edad_11 + cv.racimos_edad_12 + cv.racimos_recusados) as total_racimos '
-      'FROM cosecha_viajes cv '
-      'JOIN lotes l ON l.id = cv.lote_id '
-      'WHERE l.finca_id = ? '
-      'GROUP BY l.nombre '
-      'ORDER BY l.nombre',
-      [finca.id],
-    );
+    final lotesData = await supabase
+        .from('lotes')
+        .select()
+        .eq('finca_id', finca.id);
+    final lotes = lotesData.map(Lote.fromRow).toList();
+    final viajesData = await supabase
+        .from('cosecha_viajes')
+        .select()
+        .eq('finca_id', finca.id);
+
+    final acumulado = <String, Map<String, int>>{};
+    for (final v in viajesData) {
+      final loteId = v['lote_id'] as String;
+      final acc = acumulado.putIfAbsent(loteId, () => {
+            'num_viajes': 0,
+            for (final e in _edadesCosecha) 'edad_$e': 0,
+            'recusados': 0,
+          });
+      acc['num_viajes'] = acc['num_viajes']! + 1;
+      for (final e in _edadesCosecha) {
+        acc['edad_$e'] = acc['edad_$e']! + (v['racimos_edad_$e'] as int);
+      }
+      acc['recusados'] = acc['recusados']! + (v['racimos_recusados'] as int);
+    }
+
+    final filas = acumulado.entries.map((entry) {
+      final lote = lotes.firstWhere(
+        (l) => l.id == entry.key,
+        orElse: () =>
+            Lote(id: entry.key, fincaId: finca.id, nombre: '(lote eliminado)', hectareas: 0),
+      );
+      final acc = entry.value;
+      final totalRacimos =
+          _edadesCosecha.fold<int>(0, (s, e) => s + acc['edad_$e']!) +
+              acc['recusados']!;
+      return (
+        loteNombre: lote.nombre,
+        numViajes: acc['num_viajes']!,
+        porEdad: {for (final e in _edadesCosecha) e: acc['edad_$e']!},
+        recusados: acc['recusados']!,
+        totalRacimos: totalRacimos,
+      );
+    }).toList()
+      ..sort((a, b) => a.loteNombre.compareTo(b.loteNombre));
 
     if (!mounted) return;
 
-    int sumar(String columna) =>
-        filas.fold<int>(0, (s, f) => s + (f[columna] as int));
-    final totalViajes = sumar('num_viajes');
+    final totalViajes = filas.fold<int>(0, (s, f) => s + f.numViajes);
     final totalPorEdad = {
-      for (final e in _edadesCosecha) e: sumar('edad_$e'),
+      for (final e in _edadesCosecha)
+        e: filas.fold<int>(0, (s, f) => s + f.porEdad[e]!),
     };
-    final totalRecusados = sumar('recusados');
-    final totalRacimos = sumar('total_racimos');
+    final totalRecusados = filas.fold<int>(0, (s, f) => s + f.recusados);
+    final totalRacimos = filas.fold<int>(0, (s, f) => s + f.totalRacimos);
 
     await showDialog(
       context: context,
@@ -634,12 +637,12 @@ class _CosechaScreenState extends State<CosechaScreen> {
                       ],
                       rows: [
                         ...filas.map((f) => DataRow(cells: [
-                              DataCell(Text(f['lote_nombre'] as String)),
-                              DataCell(Text('${f['num_viajes']}')),
+                              DataCell(Text(f.loteNombre)),
+                              DataCell(Text('${f.numViajes}')),
                               ..._edadesCosecha
-                                  .map((e) => DataCell(Text('${f['edad_$e']}'))),
-                              DataCell(Text('${f['recusados']}')),
-                              DataCell(Text('${f['total_racimos']}')),
+                                  .map((e) => DataCell(Text('${f.porEdad[e]}'))),
+                              DataCell(Text('${f.recusados}')),
+                              DataCell(Text('${f.totalRacimos}')),
                             ])),
                         DataRow(
                           color: WidgetStateProperty.all(Theme.of(context)
@@ -704,145 +707,162 @@ class _CosechaScreenState extends State<CosechaScreen> {
         ],
       ),
       body: StreamBuilder(
-        stream: db.watch(
-          'SELECT cv.*, l.nombre as lote_nombre '
-          'FROM cosecha_viajes cv '
-          'JOIN lotes l ON l.id = cv.lote_id '
-          'WHERE l.finca_id = ? '
-          'ORDER BY cv.hora_registro DESC',
-          parameters: [finca.id],
-        ),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error cargando datos: ${snapshot.error}'));
+        stream: supabase
+            .from('lotes')
+            .stream(primaryKey: ['id']).eq('finca_id', finca.id),
+        builder: (context, lotesSnapshot) {
+          if (lotesSnapshot.hasError) {
+            return Center(
+                child: Text('Error cargando datos: ${lotesSnapshot.error}'));
           }
-          final viajes =
-              snapshot.data?.map(_ViajeRow.fromRow).toList() ?? const <_ViajeRow>[];
-          if (viajes.isEmpty) {
-            return const Center(child: Text('Sin viajes registrados todavía'));
+          if (!lotesSnapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
           }
+          final lotes = lotesSnapshot.data!.map(Lote.fromRow).toList();
+          final lotesPorId = {for (final l in lotes) l.id: l};
 
-          final hoy = DateTime.now();
-          final deHoy = viajes.where((v) =>
-              v.fecha.year == hoy.year &&
-              v.fecha.month == hoy.month &&
-              v.fecha.day == hoy.day);
-          final totalHoy = deHoy.fold<int>(
-              0, (s, v) => s + v.porEdad.values.fold(0, (a, b) => a + b));
-          final recusadosHoy = deHoy.fold<int>(0, (s, v) => s + v.recusados);
-          final totalPorEdadHoy = {
-            for (final e in _edadesCosecha)
-              e: deHoy.fold<int>(0, (s, v) => s + (v.porEdad[e] ?? 0)),
-          };
-          final calibracionPorEdadHoy = _promedioCalibracionPorEdad(deHoy);
+          return StreamBuilder(
+            stream: supabase
+                .from('cosecha_viajes')
+                .stream(primaryKey: ['id']).eq('finca_id', finca.id),
+            builder: (context, viajesSnapshot) {
+              if (viajesSnapshot.hasError) {
+                return Center(
+                    child:
+                        Text('Error cargando datos: ${viajesSnapshot.error}'));
+              }
+              final viajes = (viajesSnapshot.data ?? const [])
+                  .map((r) => _ViajeRow.fromRow(
+                      r, lotesPorId[r['lote_id']]?.nombre ?? '(lote eliminado)'))
+                  .toList()
+                ..sort((a, b) => b.horaRegistro.compareTo(a.horaRegistro));
+              if (viajes.isEmpty) {
+                return const Center(child: Text('Sin viajes registrados todavía'));
+              }
 
-          return ListView(
-            children: [
-              if (deHoy.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Card(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    child: Padding(
+              final hoy = DateTime.now();
+              final deHoy = viajes.where((v) =>
+                  v.fecha.year == hoy.year &&
+                  v.fecha.month == hoy.month &&
+                  v.fecha.day == hoy.day);
+              final totalHoy = deHoy.fold<int>(
+                  0, (s, v) => s + v.porEdad.values.fold(0, (a, b) => a + b));
+              final recusadosHoy = deHoy.fold<int>(0, (s, v) => s + v.recusados);
+              final totalPorEdadHoy = {
+                for (final e in _edadesCosecha)
+                  e: deHoy.fold<int>(0, (s, v) => s + (v.porEdad[e] ?? 0)),
+              };
+              final calibracionPorEdadHoy = _promedioCalibracionPorEdad(deHoy);
+
+              return ListView(
+                children: [
+                  if (deHoy.isNotEmpty)
+                    Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      child: Card(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
                             children: [
-                              _ResumenTile(
-                                  label: 'Racimos hoy', value: '$totalHoy'),
-                              _ResumenTile(
-                                  label: 'Recusados hoy',
-                                  value: '$recusadosHoy'),
-                              _ResumenTile(
-                                  label: 'Viajes hoy',
-                                  value: '${deHoy.length}'),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  _ResumenTile(
+                                      label: 'Racimos hoy', value: '$totalHoy'),
+                                  _ResumenTile(
+                                      label: 'Recusados hoy',
+                                      value: '$recusadosHoy'),
+                                  _ResumenTile(
+                                      label: 'Viajes hoy',
+                                      value: '${deHoy.length}'),
+                                ],
+                              ),
+                              if (_edadesCosecha
+                                  .any((e) => (totalPorEdadHoy[e] ?? 0) > 0)) ...[
+                                const Divider(height: 24),
+                                ..._edadesCosecha
+                                    .where((e) => (totalPorEdadHoy[e] ?? 0) > 0)
+                                    .map((e) {
+                                  final calib = calibracionPorEdadHoy[e];
+                                  return Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 2),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text('$e sem',
+                                            style: const TextStyle(fontSize: 13)),
+                                        Text('${totalPorEdadHoy[e]} racimos',
+                                            style: const TextStyle(fontSize: 13)),
+                                        Text(
+                                            calib != null
+                                                ? 'Calib. ${calib.toStringAsFixed(1)}'
+                                                : 'Calib. —',
+                                            style: const TextStyle(fontSize: 13)),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ],
                             ],
                           ),
-                          if (_edadesCosecha
-                              .any((e) => (totalPorEdadHoy[e] ?? 0) > 0)) ...[
-                            const Divider(height: 24),
-                            ..._edadesCosecha
-                                .where((e) => (totalPorEdadHoy[e] ?? 0) > 0)
-                                .map((e) {
-                              final calib = calibracionPorEdadHoy[e];
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 2),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text('$e sem',
-                                        style: const TextStyle(fontSize: 13)),
-                                    Text('${totalPorEdadHoy[e]} racimos',
-                                        style: const TextStyle(fontSize: 13)),
-                                    Text(
-                                        calib != null
-                                            ? 'Calib. ${calib.toStringAsFixed(1)}'
-                                            : 'Calib. —',
-                                        style: const TextStyle(fontSize: 13)),
-                                  ],
-                                ),
-                              );
-                            }),
-                          ],
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ...viajes.map((v) {
-                final hora =
-                    '${v.horaRegistro.hour.toString().padLeft(2, '0')}:${v.horaRegistro.minute.toString().padLeft(2, '0')}';
-                final detalle = _edadesCosecha
-                    .where((e) => (v.porEdad[e] ?? 0) > 0)
-                    .map((e) => '$e sem: ${v.porEdad[e]}')
-                    .join(' · ');
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.local_shipping)),
-                  title: Text(
-                      'Lote ${v.loteNombre} · ${v.totalRacimos} racimos · $hora'),
-                  subtitle: Text(
-                    [
-                      if (v.operario != null && v.operario!.isNotEmpty)
-                        v.operario!,
-                      if (detalle.isNotEmpty) detalle,
-                      if (v.recusados > 0) 'Recusados: ${v.recusados}',
-                    ].join(' · '),
-                  ),
-                  trailing: PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (accion) {
-                      if (accion == 'editar') {
-                        _abrirFormulario(existente: v);
-                      } else if (accion == 'eliminar') {
-                        _eliminarViaje(v);
-                      }
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: 'editar',
-                        child: ListTile(
-                          leading: Icon(Icons.edit_outlined),
-                          title: Text('Editar'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                  ...viajes.map((v) {
+                    final hora =
+                        '${v.horaRegistro.hour.toString().padLeft(2, '0')}:${v.horaRegistro.minute.toString().padLeft(2, '0')}';
+                    final detalle = _edadesCosecha
+                        .where((e) => (v.porEdad[e] ?? 0) > 0)
+                        .map((e) => '$e sem: ${v.porEdad[e]}')
+                        .join(' · ');
+                    return ListTile(
+                      leading: const CircleAvatar(child: Icon(Icons.local_shipping)),
+                      title: Text(
+                          'Lote ${v.loteNombre} · ${v.totalRacimos} racimos · $hora'),
+                      subtitle: Text(
+                        [
+                          if (v.operario != null && v.operario!.isNotEmpty)
+                            v.operario!,
+                          if (detalle.isNotEmpty) detalle,
+                          if (v.recusados > 0) 'Recusados: ${v.recusados}',
+                        ].join(' · '),
                       ),
-                      PopupMenuItem(
-                        value: 'eliminar',
-                        child: ListTile(
-                          leading: Icon(Icons.delete_outline),
-                          title: Text('Eliminar'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
+                      trailing: PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert),
+                        onSelected: (accion) {
+                          if (accion == 'editar') {
+                            _abrirFormulario(existente: v);
+                          } else if (accion == 'eliminar') {
+                            _eliminarViaje(v);
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'editar',
+                            child: ListTile(
+                              leading: Icon(Icons.edit_outlined),
+                              title: Text('Editar'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'eliminar',
+                            child: ListTile(
+                              leading: Icon(Icons.delete_outline),
+                              title: Text('Eliminar'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-              }),
-            ],
+                    );
+                  }),
+                ],
+              );
+            },
           );
         },
       ),
