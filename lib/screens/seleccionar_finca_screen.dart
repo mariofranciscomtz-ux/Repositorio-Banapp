@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../data/pin_hash.dart';
 import '../data/supabase_client.dart';
 import '../data/sesion.dart';
 import '../models/finca.dart';
-import '../models/usuario.dart';
 import '../saludo.dart';
 
 class SeleccionarFincaScreen extends StatefulWidget {
@@ -18,108 +15,11 @@ class SeleccionarFincaScreen extends StatefulWidget {
 class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
   String? _seleccionId;
 
-  Future<void> _crearUsuario() async {
-    final usuariosData = await supabase.from('usuarios').select();
-    final usuarios = usuariosData.map(Usuario.fromRow).toList();
-
-    final nombreController = TextEditingController();
-    final pinController = TextEditingController();
-    final pinConfirmController = TextEditingController();
-    String? errorDialog;
-
-    if (!mounted) return;
-    final creado = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Nuevo usuario'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nombreController,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-                textCapitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: pinController,
-                decoration: const InputDecoration(labelText: 'PIN (4 dígitos)'),
-                keyboardType: TextInputType.number,
-                obscureText: true,
-                maxLength: 4,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              ),
-              TextField(
-                controller: pinConfirmController,
-                decoration:
-                    const InputDecoration(labelText: 'Confirmar PIN'),
-                keyboardType: TextInputType.number,
-                obscureText: true,
-                maxLength: 4,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              ),
-              if (errorDialog != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(errorDialog!,
-                      style: const TextStyle(color: Colors.red)),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final nombre = nombreController.text.trim();
-                if (nombre.isEmpty) {
-                  setDialogState(() => errorDialog = 'Escribe un nombre');
-                  return;
-                }
-                if (usuarios.any(
-                    (u) => u.nombre.toLowerCase() == nombre.toLowerCase())) {
-                  setDialogState(
-                      () => errorDialog = 'Ya existe un usuario con ese nombre');
-                  return;
-                }
-                if (pinController.text.length != 4) {
-                  setDialogState(() => errorDialog = 'El PIN debe tener 4 dígitos');
-                  return;
-                }
-                if (pinController.text != pinConfirmController.text) {
-                  setDialogState(() => errorDialog = 'Los PIN no coinciden');
-                  return;
-                }
-                Navigator.pop(context, true);
-              },
-              child: const Text('Crear'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (creado == true) {
-      await supabase.from('usuarios').insert({
-        'nombre': nombreController.text.trim(),
-        'pin_hash': hashPin(pinController.text),
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            'Usuario "${nombreController.text.trim()}" creado. Ya puede iniciar sesión con su PIN.'),
-        duration: const Duration(seconds: 3),
-      ));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final saludo = saludoSegunHora();
     final colorScheme = Theme.of(context).colorScheme;
+    final usuario = usuarioActivo.value!;
 
     return Scaffold(
       body: SafeArea(
@@ -162,16 +62,10 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
                       ],
                     ),
                   ),
-                  ValueListenableBuilder(
-                    valueListenable: usuarioActivo,
-                    builder: (context, usuario, _) {
-                      if (usuario == null) return const SizedBox.shrink();
-                      return IconButton(
-                        icon: const Icon(Icons.person_outline),
-                        tooltip: 'Cambiar usuario (${usuario.nombre})',
-                        onPressed: () => usuarioActivo.value = null,
-                      );
-                    },
+                  IconButton(
+                    icon: const Icon(Icons.person_outline),
+                    tooltip: 'Cambiar usuario (${usuario.nombre})',
+                    onPressed: () => usuarioActivo.value = null,
                   ),
                 ],
               ),
@@ -179,12 +73,13 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
             Expanded(
               child: StreamBuilder(
                 stream: supabase.from('fincas').stream(primaryKey: ['id']),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
+                builder: (context, fincasSnapshot) {
+                  if (fincasSnapshot.hasError) {
                     return Center(
-                        child: Text('Error cargando fincas: ${snapshot.error}'));
+                        child: Text(
+                            'Error cargando fincas: ${fincasSnapshot.error}'));
                   }
-                  final fincas = (snapshot.data ?? const [])
+                  final todasFincas = (fincasSnapshot.data ?? const [])
                       .map(Finca.fromRow)
                       .toList()
                     ..sort((a, b) {
@@ -193,72 +88,124 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
                       final cmp = ordenA.compareTo(ordenB);
                       return cmp != 0 ? cmp : a.nombre.compareTo(b.nombre);
                     });
-                  if (fincas.isEmpty) {
-                    return const Center(child: Text('No hay fincas registradas'));
+
+                  if (usuario.esAdmin) {
+                    return _SelectorFincas(
+                      fincas: todasFincas,
+                      seleccionId: _seleccionId,
+                      onSeleccion: (id) => setState(() => _seleccionId = id),
+                    );
                   }
 
-                  final seleccionValida =
-                      fincas.any((f) => f.id == _seleccionId);
-                  final idActual = seleccionValida ? _seleccionId : null;
-                  final fincaActual = seleccionValida
-                      ? fincas.firstWhere((f) => f.id == _seleccionId)
-                      : null;
-
-                  return Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          'Finca',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          initialValue: idActual,
-                          decoration: InputDecoration(
-                            hintText: 'Selecciona una finca',
-                            prefixIcon: const Icon(Icons.agriculture),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          items: fincas
-                              .map((f) => DropdownMenuItem(
-                                    value: f.id,
-                                    child: Text(f.nombre),
-                                  ))
-                              .toList(),
-                          onChanged: (id) => setState(() => _seleccionId = id),
-                        ),
-                        const SizedBox(height: 24),
-                        FilledButton(
-                          onPressed: fincaActual == null
-                              ? null
-                              : () => fincaSeleccionada.value = fincaActual,
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text('Continuar'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextButton.icon(
-                          onPressed: _crearUsuario,
-                          icon: const Icon(Icons.person_add),
-                          label: const Text('Crear usuario nuevo'),
-                        ),
-                      ],
-                    ),
+                  return StreamBuilder(
+                    stream: supabase
+                        .from('usuario_fincas')
+                        .stream(primaryKey: ['usuario_id', 'finca_id']).eq(
+                            'usuario_id', usuario.id),
+                    builder: (context, permisosSnapshot) {
+                      if (permisosSnapshot.hasError) {
+                        return Center(
+                            child: Text(
+                                'Error cargando permisos: ${permisosSnapshot.error}'));
+                      }
+                      final idsPermitidos = (permisosSnapshot.data ?? const [])
+                          .map((r) => r['finca_id'] as String)
+                          .toSet();
+                      final fincasPermitidas = todasFincas
+                          .where((f) => idsPermitidos.contains(f.id))
+                          .toList();
+                      return _SelectorFincas(
+                        fincas: fincasPermitidas,
+                        seleccionId: _seleccionId,
+                        onSeleccion: (id) => setState(() => _seleccionId = id),
+                        sinPermisosMensaje:
+                            'No tienes fincas asignadas todavía. Pide a un administrador que te dé acceso.',
+                      );
+                    },
                   );
                 },
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SelectorFincas extends StatelessWidget {
+  final List<Finca> fincas;
+  final String? seleccionId;
+  final ValueChanged<String?> onSeleccion;
+  final String sinPermisosMensaje;
+
+  const _SelectorFincas({
+    required this.fincas,
+    required this.seleccionId,
+    required this.onSeleccion,
+    this.sinPermisosMensaje = 'No hay fincas registradas',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (fincas.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(sinPermisosMensaje, textAlign: TextAlign.center),
+        ),
+      );
+    }
+
+    final seleccionValida = fincas.any((f) => f.id == seleccionId);
+    final idActual = seleccionValida ? seleccionId : null;
+    final fincaActual =
+        seleccionValida ? fincas.firstWhere((f) => f.id == seleccionId) : null;
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Finca',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: idActual,
+            decoration: InputDecoration(
+              hintText: 'Selecciona una finca',
+              prefixIcon: const Icon(Icons.agriculture),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            items: fincas
+                .map((f) => DropdownMenuItem(
+                      value: f.id,
+                      child: Text(f.nombre),
+                    ))
+                .toList(),
+            onChanged: onSeleccion,
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: fincaActual == null
+                ? null
+                : () => fincaSeleccionada.value = fincaActual,
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: const Text('Continuar'),
+          ),
+        ],
       ),
     );
   }

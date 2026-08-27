@@ -52,16 +52,16 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        return ValueListenableBuilder<Finca?>(
-          valueListenable: fincaSeleccionada,
-          builder: (context, finca, _) {
-            if (finca == null) return const SeleccionarFincaScreen();
+        return ValueListenableBuilder<Usuario?>(
+          valueListenable: usuarioActivo,
+          builder: (context, usuario, _) {
+            if (usuario == null) return const SeleccionarUsuarioScreen();
 
-            return ValueListenableBuilder<Usuario?>(
-              valueListenable: usuarioActivo,
-              builder: (context, usuario, _) {
-                return usuario == null
-                    ? const SeleccionarUsuarioScreen()
+            return ValueListenableBuilder<Finca?>(
+              valueListenable: fincaSeleccionada,
+              builder: (context, finca, _) {
+                return finca == null
+                    ? const SeleccionarFincaScreen()
                     : const HomeScreen();
               },
             );
