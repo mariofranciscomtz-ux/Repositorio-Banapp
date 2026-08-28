@@ -3,6 +3,7 @@ import '../../data/supabase_client.dart';
 import '../../embolse_year.dart';
 import '../../models/finca.dart';
 import '../../models/lote.dart';
+import '../../widgets/app_logo.dart';
 
 const _edadesCosecha = [8, 9, 10, 11, 12];
 
@@ -57,7 +58,16 @@ class _ResumenSemanalScreenState extends State<ResumenSemanalScreen> {
     final semana = _semanas[_semanaSeleccionada];
     return Scaffold(
       appBar: AppBar(
-        title: Text('Resumen semanal · ${widget.finca.nombre}'),
+        title: Row(
+          children: [
+            const AppLogo(size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Resumen semanal · ${widget.finca.nombre}',
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [

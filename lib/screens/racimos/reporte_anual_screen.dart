@@ -4,6 +4,7 @@ import '../../data/supabase_client.dart';
 import '../../embolse_year.dart';
 import '../../models/finca.dart';
 import '../../models/lote.dart';
+import '../../widgets/app_logo.dart';
 
 class _LoteAnual {
   final String nombre;
@@ -47,7 +48,16 @@ class ReporteAnualScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Embolse año $anio · ${finca.nombre}'),
+        title: Row(
+          children: [
+            const AppLogo(size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Embolse año $anio · ${finca.nombre}',
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
       ),
       body: FutureBuilder(
         future: _cargarDatos(inicio, fin),

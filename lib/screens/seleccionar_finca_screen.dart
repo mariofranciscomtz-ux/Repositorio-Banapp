@@ -3,6 +3,7 @@ import '../data/supabase_client.dart';
 import '../data/sesion.dart';
 import '../models/finca.dart';
 import '../saludo.dart';
+import '../widgets/app_logo.dart';
 
 class SeleccionarFincaScreen extends StatefulWidget {
   const SeleccionarFincaScreen({super.key});
@@ -27,43 +28,58 @@ class _SeleccionarFincaScreenState extends State<SeleccionarFincaScreen> {
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+              padding: const EdgeInsets.fromLTRB(20, 20, 12, 28),
               decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colorScheme.primary,
+                    Color.lerp(colorScheme.primary, Colors.black, 0.25)!,
+                  ],
+                ),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(28),
                   bottomRight: Radius.circular(28),
                 ),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const AppLogo(size: 36),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(saludo.icono, size: 32, color: colorScheme.primary),
-                        const SizedBox(height: 10),
-                        Text(
-                          saludo.texto,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onPrimaryContainer,
-                          ),
+                        Row(
+                          children: [
+                            Icon(saludo.icono,
+                                size: 18, color: Colors.white.withValues(alpha: 0.9)),
+                            const SizedBox(width: 6),
+                            Text(
+                              saludo.texto,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
+                        const SizedBox(height: 6),
+                        const Text(
                           '¿En qué finca vas a trabajar hoy?',
                           style: TextStyle(
-                            fontSize: 14,
-                            color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.person_outline),
+                    icon: const Icon(Icons.person_outline, color: Colors.white),
                     tooltip: 'Cambiar usuario (${usuario.nombre})',
                     onPressed: () => usuarioActivo.value = null,
                   ),

@@ -4,6 +4,7 @@ import '../data/pin_hash.dart';
 import '../data/supabase_client.dart';
 import '../models/finca.dart';
 import '../models/usuario.dart';
+import '../widgets/app_logo.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
   const ConfiguracionScreen({super.key});
@@ -239,7 +240,15 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Configuración · Usuarios')),
+      appBar: AppBar(
+        title: const Row(
+          children: [
+            AppLogo(size: 24),
+            SizedBox(width: 8),
+            Text('Configuración · Usuarios'),
+          ],
+        ),
+      ),
       body: StreamBuilder(
         stream: supabase.from('usuarios').stream(primaryKey: ['id']),
         builder: (context, snapshot) {

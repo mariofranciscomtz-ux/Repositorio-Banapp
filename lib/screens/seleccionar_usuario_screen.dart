@@ -4,6 +4,7 @@ import '../data/pin_hash.dart';
 import '../data/supabase_client.dart';
 import '../data/sesion.dart';
 import '../models/usuario.dart';
+import '../widgets/app_logo.dart';
 
 class SeleccionarUsuarioScreen extends StatefulWidget {
   const SeleccionarUsuarioScreen({super.key});
@@ -39,7 +40,13 @@ class _SeleccionarUsuarioScreenState extends State<SeleccionarUsuarioScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('¿Quién eres?'),
+        title: const Row(
+          children: [
+            AppLogo(size: 24),
+            SizedBox(width: 8),
+            Text('¿Quién eres?'),
+          ],
+        ),
       ),
       body: StreamBuilder(
         stream: supabase.from('usuarios').stream(primaryKey: ['id']),

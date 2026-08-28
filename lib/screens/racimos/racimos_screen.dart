@@ -8,6 +8,7 @@ import '../../data/supabase_client.dart';
 import '../../data/sesion.dart' as sesion;
 import '../../embolse_year.dart';
 import '../../models/lote.dart';
+import '../../widgets/app_logo.dart';
 import 'reporte_anual_screen.dart';
 
 class _FilaLote {
@@ -223,7 +224,16 @@ class _RacimosScreenState extends State<RacimosScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Racimos identificados · ${finca.nombre}'),
+        title: Row(
+          children: [
+            const AppLogo(size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Racimos identificados · ${finca.nombre}',
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_view_month),

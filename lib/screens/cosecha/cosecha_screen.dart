@@ -4,6 +4,7 @@ import '../../data/supabase_client.dart';
 import '../../data/sesion.dart' as sesion;
 import '../../embolse_year.dart';
 import '../../models/lote.dart';
+import '../../widgets/app_logo.dart';
 import 'resumen_semanal_screen.dart';
 
 /// Edades normales de corte, en semanas.
@@ -687,7 +688,16 @@ class _CosechaScreenState extends State<CosechaScreen> {
     final finca = sesion.fincaSeleccionada.value!;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Cosecha · ${finca.nombre}'),
+        title: Row(
+          children: [
+            const AppLogo(size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Cosecha · ${finca.nombre}',
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_view_week_outlined),

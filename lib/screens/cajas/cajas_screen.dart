@@ -4,6 +4,7 @@ import '../../data/sesion.dart' as sesion;
 import '../../embolse_year.dart';
 import '../../models/caja_procesada.dart';
 import '../../models/tipo_caja.dart';
+import '../../widgets/app_logo.dart';
 
 class CajasScreen extends StatefulWidget {
   const CajasScreen({super.key});
@@ -88,7 +89,18 @@ class _CajasScreenState extends State<CajasScreen> {
   Widget build(BuildContext context) {
     final finca = sesion.fincaSeleccionada.value!;
     return Scaffold(
-      appBar: AppBar(title: Text('Cajas procesadas · ${finca.nombre}')),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            const AppLogo(size: 24),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Cajas procesadas · ${finca.nombre}',
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      ),
       body: StreamBuilder(
         stream: supabase
             .from('tipos_caja')

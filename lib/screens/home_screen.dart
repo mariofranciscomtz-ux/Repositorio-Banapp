@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/clima_service.dart';
 import '../data/sesion.dart';
 import '../saludo.dart';
+import '../widgets/app_logo.dart';
 import 'configuracion_screen.dart';
 import 'racimos/racimos_screen.dart';
 import 'cosecha/cosecha_screen.dart';
@@ -98,6 +99,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const AppLogo(size: 36),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
