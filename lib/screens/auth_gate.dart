@@ -37,7 +37,7 @@ class AuthGate extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.eco, size: 64, color: Colors.green),
+                    const Icon(Icons.eco, size: 64, color: Color(0xFF00722F)),
                     const SizedBox(height: 16),
                     const Text('No se pudo conectar con el servidor'),
                     const SizedBox(height: 16),

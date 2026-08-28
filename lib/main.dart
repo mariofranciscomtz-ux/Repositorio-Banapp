@@ -16,7 +16,7 @@ class BanappApp extends StatelessWidget {
     return MaterialApp(
       title: 'Banapp',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00722F)),
         useMaterial3: true,
       ),
       home: const AuthGate(),
