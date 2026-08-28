@@ -92,6 +92,7 @@ class _SeleccionarUsuarioScreenState extends State<SeleccionarUsuarioScreen> {
                   obscureText: true,
                   maxLength: 4,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (_) => setState(() {}),
                   onSubmitted: (_) =>
                       idActual == null ? null : _ingresar(usuarios),
                 ),
