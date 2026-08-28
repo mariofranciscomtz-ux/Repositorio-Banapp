@@ -9,11 +9,31 @@ class ClimaActual {
   final double precipitacionMm;
   final String descripcion;
   final IconData icono;
+  final List<PronosticoDia> proximosDias;
 
   ClimaActual({
     required this.temperaturaC,
     required this.sensacionTermicaC,
     required this.humedadPct,
+    required this.precipitacionMm,
+    required this.descripcion,
+    required this.icono,
+    required this.proximosDias,
+  });
+}
+
+class PronosticoDia {
+  final DateTime fecha;
+  final double tempMaxC;
+  final double tempMinC;
+  final double precipitacionMm;
+  final String descripcion;
+  final IconData icono;
+
+  PronosticoDia({
+    required this.fecha,
+    required this.tempMaxC,
+    required this.tempMinC,
     required this.precipitacionMm,
     required this.descripcion,
     required this.icono,
@@ -29,6 +49,8 @@ class ClimaService {
       'https://api.open-meteo.com/v1/forecast'
       '?latitude=$latitud&longitude=$longitud'
       '&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code'
+      '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code'
+      '&forecast_days=4'
       '&timezone=auto',
     );
 
@@ -42,6 +64,28 @@ class ClimaService {
     final codigo = actual['weather_code'] as int;
     final (descripcion, icono) = _interpretarCodigo(codigo);
 
+    final diario = datos['daily'] as Map<String, dynamic>;
+    final fechas = diario['time'] as List;
+    final tempMax = diario['temperature_2m_max'] as List;
+    final tempMin = diario['temperature_2m_min'] as List;
+    final precipitacion = diario['precipitation_sum'] as List;
+    final codigosDiarios = diario['weather_code'] as List;
+
+    // El índice 0 del arreglo diario es hoy; se muestran los 3 días
+    // siguientes.
+    final proximosDias = <PronosticoDia>[];
+    for (var i = 1; i < fechas.length; i++) {
+      final (desc, ic) = _interpretarCodigo(codigosDiarios[i] as int);
+      proximosDias.add(PronosticoDia(
+        fecha: DateTime.parse(fechas[i] as String),
+        tempMaxC: (tempMax[i] as num).toDouble(),
+        tempMinC: (tempMin[i] as num).toDouble(),
+        precipitacionMm: (precipitacion[i] as num).toDouble(),
+        descripcion: desc,
+        icono: ic,
+      ));
+    }
+
     return ClimaActual(
       temperaturaC: (actual['temperature_2m'] as num).toDouble(),
       sensacionTermicaC: (actual['apparent_temperature'] as num).toDouble(),
@@ -49,6 +93,7 @@ class ClimaService {
       precipitacionMm: (actual['precipitation'] as num).toDouble(),
       descripcion: descripcion,
       icono: icono,
+      proximosDias: proximosDias,
     );
   }
 

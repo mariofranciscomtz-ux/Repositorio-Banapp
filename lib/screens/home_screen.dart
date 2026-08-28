@@ -287,49 +287,116 @@ class _ClimaCard extends StatelessWidget {
               ),
             ),
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(clima.icono,
-                      size: 30, color: colorScheme.onSecondaryContainer),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${clima.temperaturaC.round()}°C · ${clima.descripcion}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.onSecondaryContainer,
-                        ),
+                Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Sensación ${clima.sensacionTermicaC.round()}°C · '
-                        'Humedad ${clima.humedadPct}% · '
-                        'Lluvia ${clima.precipitacionMm.toStringAsFixed(1)} mm',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSecondaryContainer.withValues(alpha: 0.8),
-                        ),
+                      child: Icon(clima.icono,
+                          size: 30, color: colorScheme.onSecondaryContainer),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${clima.temperaturaC.round()}°C · ${clima.descripcion}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: colorScheme.onSecondaryContainer,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Sensación ${clima.sensacionTermicaC.round()}°C · '
+                            'Humedad ${clima.humedadPct}% · '
+                            'Lluvia ${clima.precipitacionMm.toStringAsFixed(1)} mm',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSecondaryContainer
+                                  .withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                if (clima.proximosDias.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(
+                      height: 1,
+                      color: colorScheme.onSecondaryContainer.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: clima.proximosDias
+                        .map((d) => _DiaPronostico(dia: d))
+                        .toList(),
+                  ),
+                ],
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+const _diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+class _DiaPronostico extends StatelessWidget {
+  const _DiaPronostico({required this.dia});
+
+  final PronosticoDia dia;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final onColor = colorScheme.onSecondaryContainer;
+
+    return Column(
+      children: [
+        Text(
+          _diasSemana[dia.fecha.weekday - 1],
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: onColor.withValues(alpha: 0.85),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Icon(dia.icono, size: 22, color: onColor),
+        const SizedBox(height: 4),
+        Text(
+          '${dia.tempMaxC.round()}° / ${dia.tempMinC.round()}°',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: onColor,
+          ),
+        ),
+        if (dia.precipitacionMm > 0)
+          Text(
+            '${dia.precipitacionMm.toStringAsFixed(0)} mm',
+            style: TextStyle(
+              fontSize: 10,
+              color: onColor.withValues(alpha: 0.75),
+            ),
+          ),
+      ],
     );
   }
 }
