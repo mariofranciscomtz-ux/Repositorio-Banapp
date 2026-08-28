@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
 import '../data/clima_service.dart';
 import '../data/sesion.dart';
+import '../saludo.dart';
 import 'configuracion_screen.dart';
 import 'racimos/racimos_screen.dart';
 import 'cosecha/cosecha_screen.dart';
 import 'cajas/cajas_screen.dart';
+
+class _Modulo {
+  final String titulo;
+  final String subtitulo;
+  final IconData icono;
+  final Color color;
+  final Widget pantalla;
+  const _Modulo({
+    required this.titulo,
+    required this.subtitulo,
+    required this.icono,
+    required this.color,
+    required this.pantalla,
+  });
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,71 +46,185 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final saludo = saludoSegunHora();
+
     final modulos = [
-      (
+      _Modulo(
         titulo: 'Racimos identificados',
         subtitulo: 'Registro en edad 0 (cinta semanal)',
         icono: Icons.local_florist,
+        color: colorScheme.primary,
         pantalla: const RacimosScreen(),
       ),
-      (
+      _Modulo(
         titulo: 'Cosecha',
         subtitulo: 'Corte de racimos y datos de calidad',
         icono: Icons.agriculture,
+        color: const Color(0xFFEF6C00),
         pantalla: const CosechaScreen(),
       ),
-      (
+      _Modulo(
         titulo: 'Cajas procesadas',
         subtitulo: 'Conteo por tipo de caja y peso',
         icono: Icons.inventory_2,
+        color: const Color(0xFF1565C0),
         pantalla: const CajasScreen(),
       ),
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(fincaSeleccionada.value?.nombre ?? 'Banapp'),
-        actions: [
-          if (usuarioActivo.value?.esAdmin ?? false)
-            IconButton(
-              icon: const Icon(Icons.settings_outlined),
-              tooltip: 'Configuración',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ConfiguracionScreen()),
+      backgroundColor: colorScheme.surface,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 20, 12, 28),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colorScheme.primary,
+                    Color.lerp(colorScheme.primary, Colors.black, 0.25)!,
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(28),
+                  bottomRight: Radius.circular(28),
+                ),
               ),
-            ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Cambiar usuario (${usuarioActivo.value?.nombre ?? ""})',
-            onPressed: () => usuarioActivo.value = null,
-          ),
-          IconButton(
-            icon: const Icon(Icons.swap_horiz),
-            tooltip: 'Cambiar finca',
-            onPressed: () => fincaSeleccionada.value = null,
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          if (_climaFuture != null) _ClimaCard(future: _climaFuture!),
-          if (_climaFuture != null) const SizedBox(height: 8),
-          ...modulos.map((m) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Card(
-                  child: ListTile(
-                    leading: Icon(m.icono, size: 32),
-                    title: Text(m.titulo),
-                    subtitle: Text(m.subtitulo),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => m.pantalla),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(saludo.icono,
+                                size: 22, color: Colors.white.withValues(alpha: 0.9)),
+                            const SizedBox(width: 8),
+                            Text(
+                              saludo.texto,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          fincaSeleccionada.value?.nombre ?? 'Banapp',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        if (usuarioActivo.value != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              usuarioActivo.value!.nombre,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white.withValues(alpha: 0.85),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                ),
-              )),
-        ],
+                  if (usuarioActivo.value?.esAdmin ?? false)
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined, color: Colors.white),
+                      tooltip: 'Configuración',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const ConfiguracionScreen()),
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline, color: Colors.white),
+                    tooltip: 'Cambiar usuario (${usuarioActivo.value?.nombre ?? ""})',
+                    onPressed: () => usuarioActivo.value = null,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.swap_horiz, color: Colors.white),
+                    tooltip: 'Cambiar finca',
+                    onPressed: () => fincaSeleccionada.value = null,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                children: [
+                  if (_climaFuture != null) _ClimaCard(future: _climaFuture!),
+                  if (_climaFuture != null) const SizedBox(height: 14),
+                  ...modulos.map((m) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Card(
+                          child: InkWell(
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => m.pantalla),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 52,
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      color: m.color.withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: Icon(m.icono, size: 28, color: m.color),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          m.titulo,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          m.subtitulo,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.chevron_right,
+                                      color: colorScheme.outline),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      )),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -142,12 +272,30 @@ class _ClimaCard extends StatelessWidget {
 
         final clima = snapshot.data!;
         return Card(
-          color: colorScheme.secondaryContainer,
-          child: Padding(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colorScheme.tertiaryContainer,
+                  colorScheme.secondaryContainer,
+                ],
+              ),
+            ),
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(clima.icono, size: 36, color: colorScheme.onSecondaryContainer),
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(clima.icono,
+                      size: 30, color: colorScheme.onSecondaryContainer),
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -157,7 +305,7 @@ class _ClimaCard extends StatelessWidget {
                         '${clima.temperaturaC.round()}°C · ${clima.descripcion}',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           color: colorScheme.onSecondaryContainer,
                         ),
                       ),
