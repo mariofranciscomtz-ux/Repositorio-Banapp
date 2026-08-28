@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/clima_service.dart';
 import '../data/sesion.dart';
+import 'configuracion_screen.dart';
 import 'racimos/racimos_screen.dart';
 import 'cosecha/cosecha_screen.dart';
 import 'cajas/cajas_screen.dart';
@@ -54,6 +55,14 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(fincaSeleccionada.value?.nombre ?? 'Banapp'),
         actions: [
+          if (usuarioActivo.value?.esAdmin ?? false)
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Configuración',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ConfiguracionScreen()),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.person_outline),
             tooltip: 'Cambiar usuario (${usuarioActivo.value?.nombre ?? ""})',
